@@ -176,7 +176,7 @@ export function FromAddCard(props: FromAddCardProps) {
                   <SelectItem value="sedan">Sedan</SelectItem>
                   <SelectItem value="suv">SUV</SelectItem>
                   <SelectItem value="coupe">Coupe</SelectItem>
-                  <SelectItem value="familiar">Family</SelectItem>
+                  <SelectItem value="family">Family</SelectItem>
                   <SelectItem value="luxe">De luxe</SelectItem>
                 </SelectContent>
               </Select>
