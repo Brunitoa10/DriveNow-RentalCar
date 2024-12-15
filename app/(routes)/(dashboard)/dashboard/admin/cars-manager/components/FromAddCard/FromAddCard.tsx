@@ -15,13 +15,20 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 import { UploadButton } from "@/utils/uploadthing";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
+import { FromAddCardProps } from "./FromAddCar.types";
 import { formSchema } from "./FromAddCard.form";
 
-export function FromAddCard() {
+export function FromAddCard(props: FromAddCardProps) {
+  const {setOpenDialog} = props;
   const [photoUploaded,setPhotoUploaded] = useState(false);
+  const router = useRouter();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -38,7 +45,20 @@ export function FromAddCard() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log(values);
+    setOpenDialog(false);
+    try {
+      await axios.post(`/api/car`,values);
+      toast({
+        title: "Card created",
+      });
+      router.refresh();
+    } catch (error) {
+      console.log(error);
+      toast({
+        title: "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
   const {isValid} = form.formState;
@@ -87,7 +107,7 @@ export function FromAddCard() {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="automatic">Automático</SelectItem>
+                  <SelectItem value="automatic">Automatic</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

@@ -11,6 +11,7 @@ import {
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
 import { FromAddCard } from "../FromAddCard";
+
   
 export function ButtonAddCar() {
   const[openDialog, setOpenDialog] = useState(false);
@@ -27,7 +28,7 @@ export function ButtonAddCar() {
         <DialogHeader>
           <DialogTitle>Add a New Car</DialogTitle>
           <DialogDescription>
-            <FromAddCard/>
+            <FromAddCard setOpenDialog={setOpenDialog}/>
           </DialogDescription>
         </DialogHeader>
       </DialogContent>
