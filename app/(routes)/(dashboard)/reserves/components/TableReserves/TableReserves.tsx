@@ -48,8 +48,10 @@ export function TableReserves(props: TableReservesProps) {
                     ))}
                 </TableBody>
                 <TableFooter>
-                    <TableCell colSpan={4}>Total</TableCell>
-                    <TableCell className="text-right">U{formatPrice(totalAmount)}</TableCell>
+                    <TableRow>
+                        <TableCell colSpan={4}>Total</TableCell>
+                        <TableCell className="text-right">U{formatPrice(totalAmount)}</TableCell>
+                    </TableRow>
                 </TableFooter>
             </Table>
         </div>
