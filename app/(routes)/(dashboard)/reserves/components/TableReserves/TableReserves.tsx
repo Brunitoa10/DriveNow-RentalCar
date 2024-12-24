@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { fromatPrice } from "@/lib/formatPrice";
+import { formatPrice } from "@/lib/formatPrice";
 import { TableReservesProps } from "./TablaReserves.type";
   
 export function TableReserves(props: TableReservesProps) {
@@ -42,14 +42,14 @@ export function TableReserves(props: TableReservesProps) {
                                 </div>
                             </TableCell>
                             <TableCell className="text-right">
-                                U{fromatPrice(Number(order.totalAmount))}
+                                U{formatPrice(Number(order.totalAmount))}
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
                 <TableFooter>
                     <TableCell colSpan={4}>Total</TableCell>
-                    <TableCell className="text-right">U{fromatPrice(totalAmount)}</TableCell>
+                    <TableCell className="text-right">U{formatPrice(totalAmount)}</TableCell>
                 </TableFooter>
             </Table>
         </div>
