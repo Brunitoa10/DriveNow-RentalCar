@@ -1,5 +1,6 @@
 "use client";
 import { ModalAddReservation } from "@/components/Shared/ModalAddReservation";
+import { useLovedCars } from "@/hooks/use-loved-car";
 import { Car } from "@prisma/client";
 import { Fuel, Gem, Heart, Users, Wrench } from "lucide-react";
 import Image from "next/image";
@@ -7,10 +8,12 @@ import { ListCarsProps } from "./ListCars.types";
 
 export function ListCars(props: ListCarsProps) {
     const {cars} = props;
+    const {addLovedItem,lovedItems,removeLovedItem} = useLovedCars();
   return (
     <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
         {cars.map((car: Car) => {
             const {priceDay, name, photo, id, type, transmission, people, engine} = car;
+            const likedCar = lovedItems.some((item) => item.id === car.id);
 
             return (
                 <div key={id} className="p-1 rounded-lg shadow-md hover:shadow-lg ">
@@ -38,7 +41,8 @@ export function ListCars(props: ListCarsProps) {
                         </p>
                         <div className="flex items-center justify-center gap-x-3">
                             <ModalAddReservation car={car}/>
-                            <Heart className="mt-2 cursor-pointer" onClick={() => console.log("HEART")}/>
+                            <Heart className={`mt-2 cursor-pointer ${likedCar && "fill-black" }`}
+                            onClick={likedCar ? () => removeLovedItem(car.id) : () => addLovedItem(car)}/>
                         </div>
                     </div>
                 </div>
