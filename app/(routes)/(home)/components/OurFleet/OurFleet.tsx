@@ -1,4 +1,5 @@
 "use client";
+import { Reveal } from "@/components/Shared/Reveal";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -21,7 +22,7 @@ export function OurFleet() {
         fetchCategoryCar();
       }, []);
   return (
-    <div className="max-w-6xl mx-auto p-6 text-center py-12 lg:py-40">
+    <Reveal className="max-w-6xl mx-auto p-6 text-center py-4 lg:py-40" position="bottom">
         <h3 className="text-2xl lg:text-6xl font-bold">Our Vehicle Feet</h3>
         <p className="text-lg mt-2 lg:mt-5 lg:text-center text-center w-full mx-auto max-w-2xl mb-5 lg:mb-10">
             Discover our extensive vehicle fleet, carefully selected to meet the transportation needs of our customers.
@@ -42,6 +43,6 @@ export function OurFleet() {
                 </div>
             ))}
             </div>
-    </div>
+    </Reveal>
   );
 }

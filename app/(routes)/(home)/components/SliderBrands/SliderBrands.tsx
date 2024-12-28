@@ -4,9 +4,7 @@ import { Reveal } from "@/components/Shared/Reveal";
 import {
   Carousel,
   CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
+  CarouselItem
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import Image from "next/image";
@@ -54,12 +52,7 @@ export function SliderBrands() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-gray-200 rounded-full p-2 cursor-pointer">
-          <span>Prev</span>
-        </CarouselPrevious>
-        <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gray-200 rounded-full p-2 cursor-pointer">
-          <span>Next</span>
-        </CarouselNext>
+        
       </Carousel>
     </Reveal>
   );

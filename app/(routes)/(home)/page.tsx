@@ -1,4 +1,5 @@
 import { NavBar } from "@/components/Shared/NavBar";
+import { DriveToday } from "./components/DriveToday/DriveToday";
 import { Feature } from "./components/Features/Feature";
 import { FirstBlock } from "./components/FirstBlock";
 import { OurFleet } from "./components/OurFleet";
@@ -12,6 +13,7 @@ export default function Home() {
           <SliderBrands/>
           <Feature/>
           <OurFleet/>
+          <DriveToday/>
         </div>
     );
   }
