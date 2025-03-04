@@ -21,13 +21,16 @@ export function NavBar() {
 
       {/* Desktop Navigation */}
       <div className="hidden md:flex items-center gap-x-7">
-        <Link href="/cars" className="text-sm font-medium hover:underline">
-          List Cars
-        </Link>
-        <Link href="/dashboard" className="text-sm font-medium hover:underline">
-          Dashboard
-        </Link>
-
+        <Button>
+          <Link href="/cars" className="text-sm font-medium hover:underline">
+            List Cars
+          </Link>
+        </Button>
+        <Button>
+          <Link href="/dashboard" className="text-sm font-medium hover:underline">
+            Dashboard
+          </Link>
+        </Button>
         {userId ? (
           <>
             <Link href="/loved-cars" aria-label="Loved Cars">
