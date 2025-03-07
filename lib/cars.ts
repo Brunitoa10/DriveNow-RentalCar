@@ -1,4 +1,4 @@
-import { db } from "./db"; // Importa la base de datos
+import { db } from "./db";
 
 export async function getPublishedCars() {
   return await db.car.findMany({

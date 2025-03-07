@@ -61,7 +61,7 @@ export function NavBar() {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-20 left-0 w-full bg-background py-4 flex flex-col items-center gap-y-4">
           <Link href="/cars" className="text-sm font-medium hover:underline">
-            List Cars
+            Cars
           </Link>
           <Link href="/dashboard" className="text-sm font-medium hover:underline">
             Dashboard
