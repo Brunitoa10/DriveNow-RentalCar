@@ -23,7 +23,7 @@ export function NavBar() {
       <div className="hidden md:flex items-center gap-x-7">
         <Button>
           <Link href="/cars" className="text-sm font-medium hover:underline">
-            List Cars
+            Cars
           </Link>
         </Button>
         <Button>
