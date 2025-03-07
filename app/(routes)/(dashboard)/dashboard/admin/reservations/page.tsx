@@ -6,7 +6,7 @@ import { TableReserves } from "./components/TableReserves";
 export default async function ReservesAdminPage() {
   const {userId} = await auth();
   const user = await currentUser();
-  if(!userId || !user){
+  if(!userId || !user){ 
     return redirect("/");
   }
   const orders = await db.order.findMany({

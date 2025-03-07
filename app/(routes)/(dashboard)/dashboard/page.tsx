@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getPublishedCars } from "@/lib/cars";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { ListCars } from "./components/ListCars";
@@ -8,14 +8,8 @@ export default async function DashboardPage() {
   if(!userId){
     return redirect("/");
   }
-  const cars = await db.car.findMany({
-    where: {
-      isPublish: true
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+
+  const cars = await getPublishedCars();
 
   return (
     <div>

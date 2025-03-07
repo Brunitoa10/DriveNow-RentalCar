@@ -1,3 +1,5 @@
+"use client"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,15 +13,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/nextjs";
 import { Car } from "@prisma/client";
 import axios from "axios";
 import { addDays } from "date-fns";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { CalendarSelector } from "./CalendarSelector";
 import { ModalAddReservationProps } from "./ModalAddReservation.types";
 
 export function ModalAddReservation(props: ModalAddReservationProps) {
+  const { userId } = useAuth();
+  const router = useRouter();
   const { car } = props;
   const [dateSelected,setDateSelected] = useState<{
     from: Date | undefined,
@@ -29,6 +35,9 @@ export function ModalAddReservation(props: ModalAddReservationProps) {
     to: addDays(new Date(),5),
   })
   const onReserveCar = async (car: Car, dateSelected: DateRange) => {
+    if (!userId) {
+      router.push("/sign-in");
+    }
     const response = await axios.post("/api/checkout", {
       carId: car.id,
       priceDay: car.priceDay,
