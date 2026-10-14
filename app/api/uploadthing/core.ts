@@ -1,28 +1,17 @@
-import { auth } from "@clerk/nextjs/server";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { UploadThingError } from "uploadthing/server";
+import { isAdmin } from "@modules/admin-auth/guard";
 
 const f = createUploadthing();
 
-const handlerAuth = async () => {
-    const { userId } = await auth();
-    if (!userId) {
-        throw new Error("UnAuthorized");
-    }
-    return { userId };
-};
-
+/** Sólo el panel admin puede subir fotos de autos. */
 export const ourFileRouter = {
-  photo: f({
-    image: {
-      maxFileSize: "4MB"
-    }
-  })
-  .middleware(async () => {
-    return await handlerAuth();
-  })
-  .onUploadComplete(() => {
-    console.log("Upload complete!");
-  }),
+  carPhoto: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      if (!(await isAdmin())) throw new UploadThingError("No autorizado");
+      return {};
+    })
+    .onUploadComplete(({ file }) => ({ url: file.ufsUrl })),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

@@ -1,43 +1,26 @@
-
-import { Toaster } from "@/components/ui/toaster";
-import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Outfit, Roboto_Mono } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
+import "@fontsource-variable/manrope";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
-
-// Configuración de las fuentes
-const geistSans = Outfit({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Roboto_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { Toaster } from "@/components/ui/toaster";
+import { siteConfig } from "@shared/config/site";
 
 export const metadata: Metadata = {
-  title: "Admin DriveNow",
-  description: "DriveNow by: TechnologyAdvanceSolutions",
+  title: { default: `${siteConfig.name} · ${siteConfig.tagline}`, template: `%s · ${siteConfig.name}` },
+  description: siteConfig.description,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          <NextTopLoader color="000"/>
-          {children}
-          <Toaster/>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="es">
+      <body className="min-h-screen">
+        <NextTopLoader color="hsl(37 42% 50%)" showSpinner={false} height={2} />
+        {children}
+        <Toaster />
+      </body>
+    </html>
   );
 }

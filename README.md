@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DriveNow · Alquiler de autos premium
 
-## Getting Started
+Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · Tailwind/shadcn · Leaflet + OSRM · Stripe (opcional)
 
-First, run the development server:
+## Puesta en marcha
 
 ```bash
+cp .env.example .env          # completá DATABASE_URL y ADMIN_ACCESS_KEY
+npm install
+npx prisma migrate reset      # crea las tablas nuevas (borra los datos de desarrollo)
+npx prisma db seed            # flota, sucursales, historial y reseñas de demo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Sitio: `http://localhost:3000`
+- Panel: `http://localhost:3000/admin` → ingresás con `ADMIN_ACCESS_KEY` (sin cuentas)
+- Reserva de prueba para reseñar: `/mis-reservas` con **DN-PRUEBA01** + **demo@drivenow.com**
+- Sin `STRIPE_API_KEY` el checkout corre en **modo demo** (botón "Simular pago").
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Arquitectura
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/                      Rutas (sólo composición: leen del container y renderizan)
+  (public)/               Home, flota, detalle, reserva, mis-reservas, favoritos, sucursales
+  admin/login             Acceso con clave
+  admin/(panel)/          Resumen, flota y performance, reservas, mapa, sucursales
+  api/                    UploadThing + webhook de Stripe
+src/
+  server/container.ts     Composition Root: única fábrica de dependencias
+  modules/
+    cars/                 domain · validation · infrastructure (Prisma) · application · ui · actions
+    reservations/         pricing (Strategy) · state machine · servicio · BookingPanel
+    reviews/              reseñas por criterios y resumen
+    fleet/                índice de performance (Strategy + Composite) · KPIs · mantenimiento
+    branches/             sucursales
+    routing/              OSRM (Adapter) + fallback línea recta (Decorator)
+    payments/             PaymentGateway: Stripe / Demo
+    admin-auth/           cookie firmada HMAC + middleware
+  shared/                 config, formatters, errores, UI base, mapas
+```
 
-## Learn More
+### Principios y patrones aplicados
 
-To learn more about Next.js, take a look at the following resources:
+| Dónde | Patrón / principio |
+|---|---|
+| `*Repository` interfaces + `Prisma*Repository` | Repository + DIP: los servicios no conocen Prisma |
+| `server/container.ts` | Composition Root / inyección de dependencias |
+| `reservations/domain/pricing.ts` | Strategy + Composite: cada regla de precio es una clase (OCP) |
+| `reservations/domain/reservation-state.ts` | State Machine: transiciones válidas en un solo lugar |
+| `fleet/domain/performance.ts` | Strategy por criterio + scorer ponderado |
+| `payments/payment-gateway.ts` | Puerto de pagos: Stripe hoy, MercadoPago mañana sin tocar el servicio |
+| `routing/routing.ts` | Adapter (OSRM) + Decorator con fallback |
+| `shared/lib/result.ts` | Resultado uniforme para Server Actions (sin excepciones al cliente) |
+| `cars/validation/car.schema.ts` | Una sola validación zod para cliente y servidor |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Seguridad
+- El precio se calcula **siempre en el servidor**; el cliente sólo ve una cotización.
+- La reserva nace `PENDING` y pasa a `PAID` por webhook o verificación con el proveedor.
+- Control de disponibilidad (no se superponen reservas).
+- Todas las mutaciones admin verifican la sesión (`assertAdmin`), además del middleware.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Índice de performance (0–100)
 
-## Deploy on Vercel
+| Criterio | Peso | Fuente |
+|---|---|---|
+| Satisfacción | 35% | Reseñas de clientes (1–5) |
+| Utilización | 30% | Días alquilados / días disponibles (meta 75%) |
+| Confiabilidad | 20% | Incidentes cada 1000 km + días en taller |
+| Eficiencia | 15% | L/100 km medido vs. referencia por categoría |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Grados: **A** ≥ 85 · **B** ≥ 70 · **C** ≥ 55 · **D** < 55. Los datos de viaje se cargan al registrar la devolución de cada reserva.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Stripe (opcional)
+1. `STRIPE_API_KEY` y `STRIPE_WEBHOOK_SECRET` en `.env`
+2. Webhook → `POST /api/webhooks/stripe` con el evento `checkout.session.completed`
+3. En local: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
