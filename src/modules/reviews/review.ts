@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Criterios que califica el cliente. Agregar uno = agregarlo acá y en el schema Prisma. */
+/** Criterios que califica el cliente. Agregar uno = agregarlo acá y como columna en la migración SQL. */
 export const REVIEW_CRITERIA = [
   { key: "comfort", label: "Confort" },
   { key: "cleanliness", label: "Limpieza" },

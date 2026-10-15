@@ -1,6 +1,6 @@
-import type { DeliveryMode, ReservationStatus } from "@prisma/client";
-
-export type { DeliveryMode, ReservationStatus };
+export const RESERVATION_STATUSES = ["PENDING", "PAID", "ACTIVE", "COMPLETED", "CANCELLED"] as const;
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+export type DeliveryMode = "BRANCH" | "HOME";
 
 export interface Reservation {
   id: string;

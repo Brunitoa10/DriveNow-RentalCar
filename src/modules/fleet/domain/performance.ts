@@ -1,4 +1,4 @@
-import type { CarCategory, FuelType } from "@prisma/client";
+import type { CarCategory, FuelType } from "@modules/cars/domain/car";
 
 /** Datos crudos de un auto en la ventana analizada. */
 export interface CarActivity {

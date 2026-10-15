@@ -1,25 +1,40 @@
 import "server-only";
-import type { PrismaClient } from "@prisma/client";
+import type { Tables } from "@server/database.types";
+import { unwrap, unwrapMaybe, type Db } from "@server/supabase";
 import { NotFoundError } from "@shared/lib/errors";
 import { branchSchema, type Branch, type BranchInput, type BranchRepository } from "./branch";
 
-export class PrismaBranchRepository implements BranchRepository {
-  constructor(private readonly db: PrismaClient) {}
+const toDomain = (r: Tables<"branches">): Branch => ({
+  id: r.id,
+  name: r.name,
+  address: r.address,
+  city: r.city,
+  phone: r.phone,
+  lat: r.lat,
+  lng: r.lng,
+});
 
-  findAll(): Promise<Branch[]> {
-    return this.db.branch.findMany({ orderBy: { name: "asc" } });
+export class SupabaseBranchRepository implements BranchRepository {
+  constructor(private readonly db: Db) {}
+
+  async findAll(): Promise<Branch[]> {
+    return unwrap(await this.db.from("branches").select("*").order("name")).map(toDomain);
   }
 
-  findById(id: string): Promise<Branch | null> {
-    return this.db.branch.findUnique({ where: { id } });
+  async findById(id: string): Promise<Branch | null> {
+    const row = unwrapMaybe(await this.db.from("branches").select("*").eq("id", id).maybeSingle());
+    return row ? toDomain(row) : null;
   }
 
-  create(input: BranchInput): Promise<Branch> {
-    return this.db.branch.create({ data: { ...input, phone: input.phone || null } });
+  async create(input: BranchInput): Promise<Branch> {
+    const row = unwrap(
+      await this.db.from("branches").insert({ ...input, phone: input.phone || null }).select("*").single(),
+    );
+    return toDomain(row);
   }
 
   async delete(id: string): Promise<void> {
-    await this.db.branch.delete({ where: { id } });
+    unwrap(await this.db.from("branches").delete().eq("id", id));
   }
 }
 

@@ -1,6 +1,6 @@
 import Image, { type ImageProps } from "next/image";
 
-const OPTIMIZABLE_HOSTS = ["utfs.io", "ufs.sh", "images.unsplash.com"];
+const OPTIMIZABLE_HOSTS = ["supabase.co", "images.unsplash.com"];
 
 const canOptimize = (src: string) => {
   if (src.startsWith("/")) return true;

@@ -6,6 +6,9 @@ import "server-only";
  */
 export const env = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+  storageBucket: process.env.SUPABASE_STORAGE_BUCKET || "car-photos",
   adminAccessKey: process.env.ADMIN_ACCESS_KEY || "",
   adminSessionSecret: process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_ACCESS_KEY || "",
   stripeApiKey: process.env.STRIPE_API_KEY || "",

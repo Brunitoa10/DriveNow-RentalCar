@@ -1,18 +1,54 @@
 import "server-only";
-import type { PrismaClient } from "@prisma/client";
+import type { Tables } from "@server/database.types";
+import { unwrap, type Db } from "@server/supabase";
 import type { ReservationService } from "@modules/reservations/application/reservation.service";
 import { DomainError } from "@shared/lib/errors";
 import { reviewSchema, summarize, type RatingSummary, type Review, type ReviewRepository } from "./review";
 
-export class PrismaReviewRepository implements ReviewRepository {
-  constructor(private readonly db: PrismaClient) {}
+const toDomain = (r: Tables<"reviews">): Review => ({
+  id: r.id,
+  carId: r.car_id,
+  authorName: r.author_name,
+  overall: r.overall,
+  comfort: r.comfort,
+  cleanliness: r.cleanliness,
+  performance: r.performance,
+  efficiency: r.efficiency,
+  value: r.value,
+  comment: r.comment,
+  createdAt: new Date(r.created_at),
+});
 
-  findByCar(carId: string, limit = 50): Promise<Review[]> {
-    return this.db.review.findMany({ where: { carId }, orderBy: { createdAt: "desc" }, take: limit });
+export class SupabaseReviewRepository implements ReviewRepository {
+  constructor(private readonly db: Db) {}
+
+  async findByCar(carId: string, limit = 200): Promise<Review[]> {
+    const rows = unwrap(
+      await this.db.from("reviews").select("*").eq("car_id", carId).order("created_at", { ascending: false }).limit(limit),
+    );
+    return rows.map(toDomain);
   }
 
-  create(data: Omit<Review, "id" | "createdAt"> & { reservationId: string }): Promise<Review> {
-    return this.db.review.create({ data });
+  async create(data: Omit<Review, "id" | "createdAt"> & { reservationId: string }): Promise<Review> {
+    const row = unwrap(
+      await this.db
+        .from("reviews")
+        .insert({
+          car_id: data.carId,
+          reservation_id: data.reservationId,
+          author_name: data.authorName,
+          overall: data.overall,
+          comfort: data.comfort,
+          cleanliness: data.cleanliness,
+          performance: data.performance,
+          efficiency: data.efficiency,
+          value: data.value,
+          comment: data.comment,
+        })
+        .select("*")
+        .single(),
+    );
+    return toDomain(row);
   }
 }
 

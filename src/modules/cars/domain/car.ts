@@ -1,6 +1,11 @@
-import type { CarCategory, FuelType, Transmission } from "@prisma/client";
+/** Enums de dominio (reflejan los enums de Postgres en Supabase). */
+export const CAR_CATEGORIES = ["SEDAN", "SUV", "DEPORTIVO", "LUJO", "COMPACTO", "PICKUP"] as const;
+export const TRANSMISSIONS = ["MANUAL", "AUTOMATICA"] as const;
+export const FUEL_TYPES = ["NAFTA", "DIESEL", "HIBRIDO", "ELECTRICO"] as const;
 
-export type { CarCategory, FuelType, Transmission };
+export type CarCategory = (typeof CAR_CATEGORIES)[number];
+export type Transmission = (typeof TRANSMISSIONS)[number];
+export type FuelType = (typeof FUEL_TYPES)[number];
 
 /** Entidad de dominio: tipos planos (number en lugar de Decimal) serializables al cliente. */
 export interface Car {

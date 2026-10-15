@@ -1,9 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImageIcon, Loader2 } from "lucide-react";
+import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Controller, useForm, type Control, type FieldPath } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Branch } from "@modules/branches/branch";
 import { CarImage } from "@shared/ui/CarImage";
-import { UploadButton } from "@shared/lib/uploadthing";
-import { createCarAction, updateCarAction } from "../../actions";
+import { createCarAction, updateCarAction, uploadCarPhotoAction } from "../../actions";
 import { CATEGORY_LABELS, FUEL_LABELS, TRANSMISSION_LABELS } from "../../domain/car";
 import { carSchema, type CarFormValues } from "../../validation/car.schema";
 
@@ -53,6 +52,17 @@ export function CarForm({ carId, defaultValues, branches }: CarFormProps) {
   const { register, handleSubmit, control, watch, setValue, formState } = form;
   const errors = formState.errors;
   const photo = watch("photo");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [isUploading, startUpload] = useTransition();
+
+  const uploadPhoto = (file: File) =>
+    startUpload(async () => {
+      const data = new FormData();
+      data.set("file", file);
+      const result = await uploadCarPhotoAction(data);
+      if (result.ok) setValue("photo", result.data.url, { shouldValidate: true, shouldDirty: true });
+      else toast({ title: "No se pudo subir", description: result.error, variant: "destructive" });
+    });
 
   const onSubmit = handleSubmit((values) => {
     setServerError(null);
@@ -150,18 +160,22 @@ export function CarForm({ carId, defaultValues, branches }: CarFormProps) {
               </div>
             )}
           </div>
-          <UploadButton
-            endpoint="carPhoto"
-            className="mt-3 ut-button:h-9 ut-button:w-full ut-button:bg-ink ut-button:text-sm ut-button:after:bg-brass ut-allowed-content:text-xs ut-allowed-content:text-muted-foreground"
-            content={{ button: "Subir foto", allowedContent: "JPG o PNG · hasta 4 MB" }}
-            onClientUploadComplete={(res) => {
-              const url = res?.[0]?.ufsUrl;
-              if (url) setValue("photo", url, { shouldValidate: true });
-            }}
-            onUploadError={(e) => {
-              toast({ title: "No se pudo subir", description: e.message, variant: "destructive" });
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadPhoto(file);
+              e.target.value = "";
             }}
           />
+          <Button type="button" variant="secondary" className="mt-3 w-full" disabled={isUploading} onClick={() => fileInput.current?.click()}>
+            {isUploading ? <Loader2 className="animate-spin" /> : <Upload />}
+            {isUploading ? "Subiendo…" : "Subir foto"}
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-muted-foreground">JPG, PNG o WEBP · hasta 4 MB · Supabase Storage</p>
           <div className="mt-3">
             <Field label="…o pegá una URL" error={errors.photo?.message}>
               <Input placeholder="https://…" {...register("photo")} />

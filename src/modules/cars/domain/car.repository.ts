@@ -3,7 +3,7 @@ import type { Car, CarFilters, CarWithRating } from "./car";
 
 /**
  * Puerto (interfaz) del repositorio de autos.
- * Los servicios dependen de esta abstracción, no de Prisma (DIP).
+ * Los servicios dependen de esta abstracción, no de Supabase (DIP).
  */
 export interface CarRepository {
   findPublished(filters: CarFilters): Promise<CarWithRating[]>;

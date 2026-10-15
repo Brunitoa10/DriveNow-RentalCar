@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAR_CATEGORIES, FUEL_TYPES, TRANSMISSIONS } from "../domain/car";
 
 const currentYear = new Date().getFullYear();
 
@@ -7,9 +8,9 @@ export const carSchema = z.object({
   name: z.string().trim().min(2, "Ingresá un nombre").max(80),
   brand: z.string().trim().min(2, "Ingresá la marca").max(40),
   year: z.coerce.number().int().min(1990).max(currentYear + 1),
-  category: z.enum(["SEDAN", "SUV", "DEPORTIVO", "LUJO", "COMPACTO", "PICKUP"]),
-  transmission: z.enum(["MANUAL", "AUTOMATICA"]),
-  fuel: z.enum(["NAFTA", "DIESEL", "HIBRIDO", "ELECTRICO"]),
+  category: z.enum(CAR_CATEGORIES),
+  transmission: z.enum(TRANSMISSIONS),
+  fuel: z.enum(FUEL_TYPES),
   seats: z.coerce.number().int().min(1).max(15),
   horsepower: z.coerce.number().int().min(40).max(2000),
   engine: z.string().trim().min(2, "Describí el motor").max(60),

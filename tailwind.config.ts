@@ -1,8 +1,6 @@
 import type { Config } from "tailwindcss";
-import { withUt } from "uploadthing/tw";
 
-// withUt agrega los estilos de UploadThing y las variantes ut-* sin pisar Tailwind
-export default withUt({
+export default {
   darkMode: ["class"],
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -49,4 +47,4 @@ export default withUt({
     },
   },
   plugins: [require("tailwindcss-animate")],
-} satisfies Config);
+} satisfies Config;

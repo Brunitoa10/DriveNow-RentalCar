@@ -1,12 +1,14 @@
 import "server-only";
-import type { PrismaClient, ReservationStatus } from "@prisma/client";
 import { addMonths, differenceInCalendarDays, format, max as maxDate, min as minDate, startOfMonth, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { z } from "zod";
 import type { TripRecorder } from "@modules/reservations/application/reservation.service";
+import type { ReservationStatus } from "@modules/reservations/domain/reservation";
+import { unwrap, type Db } from "@server/supabase";
 import type { CarActivity, CarPerformance, PerformanceScorer } from "./domain/performance";
 
 const REVENUE_STATUSES: ReservationStatus[] = ["PAID", "ACTIVE", "COMPLETED"];
+const sum = (values: number[]) => values.reduce((acc, v) => acc + v, 0);
 
 export const maintenanceSchema = z.object({
   carId: z.string().uuid(),
@@ -52,7 +54,7 @@ const overlapDays = (start: Date, end: Date, from: Date, to: Date) => {
  */
 export class FleetService implements TripRecorder {
   constructor(
-    private readonly db: PrismaClient,
+    private readonly db: Db,
     private readonly scorer: PerformanceScorer,
   ) {}
 
@@ -61,21 +63,26 @@ export class FleetService implements TripRecorder {
   async performance(windowDays = 90): Promise<CarPerformance[]> {
     const to = new Date();
     const from = subDays(to, windowDays);
+    const [fromIso, toIso] = [from.toISOString(), to.toISOString()];
 
-    const cars = await this.db.car.findMany({
-      include: {
-        reservations: {
-          where: { status: { in: REVENUE_STATUSES }, startDate: { lt: to }, endDate: { gt: from } },
-          select: { startDate: true, endDate: true, total: true },
-        },
-        reviews: { select: { overall: true } },
-        tripLogs: { where: { recordedAt: { gte: from } }, select: { distanceKm: true, fuelUsedL: true, incidents: true } },
-        maintenances: {
-          where: { startDate: { lt: to }, OR: [{ endDate: null }, { endDate: { gt: from } }] },
-          select: { startDate: true, endDate: true, cost: true },
-        },
-      },
-    });
+    // Una sola consulta con relaciones embebidas y filtradas (PostgREST)
+    const cars = unwrap(
+      await this.db
+        .from("cars")
+        .select(
+          `id, name, brand, photo, category, fuel,
+           reservations(start_date, end_date, total, status),
+           reviews(overall),
+           trip_logs(distance_km, fuel_used_l, incidents, recorded_at),
+           maintenances(start_date, end_date, cost)`,
+        )
+        .in("reservations.status", REVENUE_STATUSES)
+        .lt("reservations.start_date", toIso)
+        .gt("reservations.end_date", fromIso)
+        .gte("trip_logs.recorded_at", fromIso)
+        .lt("maintenances.start_date", toIso)
+        .or(`end_date.is.null,end_date.gt.${fromIso}`, { referencedTable: "maintenances" }),
+    );
 
     return cars
       .map((car): CarActivity => {
@@ -88,15 +95,17 @@ export class FleetService implements TripRecorder {
           category: car.category,
           fuel: car.fuel,
           windowDays,
-          bookedDays: car.reservations.reduce((acc, r) => acc + overlapDays(r.startDate, r.endDate, from, to), 0),
-          downtimeDays: car.maintenances.reduce((acc, m) => acc + overlapDays(m.startDate, m.endDate ?? to, from, to), 0),
-          revenue: car.reservations.reduce((acc, r) => acc + Number(r.total), 0),
-          ratingAverage: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
+          bookedDays: sum(car.reservations.map((r) => overlapDays(new Date(r.start_date), new Date(r.end_date), from, to))),
+          downtimeDays: sum(
+            car.maintenances.map((m) => overlapDays(new Date(m.start_date), m.end_date ? new Date(m.end_date) : to, from, to)),
+          ),
+          revenue: sum(car.reservations.map((r) => Number(r.total))),
+          ratingAverage: ratings.length ? sum(ratings) / ratings.length : null,
           ratingCount: ratings.length,
-          distanceKm: car.tripLogs.reduce((acc, t) => acc + t.distanceKm, 0),
-          fuelUsedL: car.tripLogs.reduce((acc, t) => acc + t.fuelUsedL, 0),
-          incidents: car.tripLogs.reduce((acc, t) => acc + t.incidents, 0),
-          maintenanceCost: car.maintenances.reduce((acc, m) => acc + Number(m.cost), 0),
+          distanceKm: sum(car.trip_logs.map((t) => t.distance_km)),
+          fuelUsedL: sum(car.trip_logs.map((t) => t.fuel_used_l)),
+          incidents: sum(car.trip_logs.map((t) => t.incidents)),
+          maintenanceCost: sum(car.maintenances.map((m) => Number(m.cost))),
         };
       })
       .map((activity) => this.scorer.evaluate(activity))
@@ -115,20 +124,22 @@ export class FleetService implements TripRecorder {
     const prevFrom = subDays(from, windowDays);
     const sixMonthsAgo = startOfMonth(addMonths(now, -5));
 
-    const [current, previous, active, upcoming, pending, rating, fleetSize, published, monthly, performance] =
+    const [current, previous, active, upcoming, pending, ratings, fleetSize, published, monthly, performance] =
       await Promise.all([
         this.sumRevenue(from, now),
         this.sumRevenue(prevFrom, from),
-        this.db.reservation.count({ where: { status: "ACTIVE" } }),
-        this.db.reservation.count({ where: { status: "PAID", startDate: { gte: now } } }),
-        this.db.reservation.count({ where: { status: "PENDING" } }),
-        this.db.review.aggregate({ _avg: { overall: true }, _count: { _all: true } }),
-        this.db.car.count(),
-        this.db.car.count({ where: { isPublished: true } }),
-        this.db.reservation.findMany({
-          where: { status: { in: REVENUE_STATUSES }, startDate: { gte: sixMonthsAgo } },
-          select: { startDate: true, total: true },
-        }),
+        this.countRows(this.head("reservations").eq("status", "ACTIVE")),
+        this.countRows(this.head("reservations").eq("status", "PAID").gte("start_date", now.toISOString())),
+        this.countRows(this.head("reservations").eq("status", "PENDING")),
+        this.db.from("reviews").select("overall").then(unwrap),
+        this.countRows(this.head("cars")),
+        this.countRows(this.head("cars").eq("is_published", true)),
+        this.db
+          .from("reservations")
+          .select("start_date, total")
+          .in("status", REVENUE_STATUSES)
+          .gte("start_date", sixMonthsAgo.toISOString())
+          .then(unwrap),
         this.performance(windowDays),
       ]);
 
@@ -137,7 +148,7 @@ export class FleetService implements TripRecorder {
       const key = format(month, "yyyy-MM");
       return {
         label: format(month, "MMM", { locale: es }),
-        value: monthly.filter((r) => format(r.startDate, "yyyy-MM") === key).reduce((acc, r) => acc + Number(r.total), 0),
+        value: sum(monthly.filter((r) => format(new Date(r.start_date), "yyyy-MM") === key).map((r) => Number(r.total))),
       };
     });
 
@@ -147,9 +158,9 @@ export class FleetService implements TripRecorder {
       activeRentals: active,
       upcomingRentals: upcoming,
       pendingPayments: pending,
-      utilization: performance.length ? performance.reduce((acc, p) => acc + p.utilization, 0) / performance.length : 0,
-      averageRating: rating._avg.overall,
-      reviewCount: rating._count._all,
+      utilization: performance.length ? sum(performance.map((p) => p.utilization)) / performance.length : 0,
+      averageRating: ratings.length ? sum(ratings.map((r) => r.overall)) / ratings.length : null,
+      reviewCount: ratings.length,
       fleetSize,
       publishedCount: published,
       revenueByMonth,
@@ -159,29 +170,80 @@ export class FleetService implements TripRecorder {
   // ── Registros operativos ──────────────────────────────────────────────
 
   async record(input: { carId: string; reservationId: string; distanceKm: number; fuelUsedL: number; incidents: number; notes?: string }) {
-    await this.db.tripLog.create({ data: input });
+    unwrap(
+      await this.db.from("trip_logs").insert({
+        car_id: input.carId,
+        reservation_id: input.reservationId,
+        distance_km: input.distanceKm,
+        fuel_used_l: input.fuelUsedL,
+        incidents: input.incidents,
+        notes: input.notes ?? null,
+      }),
+    );
   }
 
   async addMaintenance(raw: unknown) {
-    const data = maintenanceSchema.parse(raw);
-    await this.db.maintenance.create({ data });
+    const m = maintenanceSchema.parse(raw);
+    unwrap(
+      await this.db.from("maintenances").insert({
+        car_id: m.carId,
+        kind: m.kind,
+        description: m.description ?? null,
+        cost: m.cost,
+        start_date: m.startDate.toISOString(),
+        end_date: m.endDate ? m.endDate.toISOString() : null,
+      }),
+    );
   }
 
-  listMaintenance(carId: string) {
-    return this.db.maintenance
-      .findMany({ where: { carId }, orderBy: { startDate: "desc" } })
-      .then((rows) => rows.map((m) => ({ ...m, cost: Number(m.cost) })));
+  async listMaintenance(carId: string) {
+    const rows = unwrap(
+      await this.db.from("maintenances").select("*").eq("car_id", carId).order("start_date", { ascending: false }),
+    );
+    return rows.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      cost: Number(m.cost),
+      startDate: new Date(m.start_date),
+      endDate: m.end_date ? new Date(m.end_date) : null,
+    }));
   }
 
-  listTrips(carId: string) {
-    return this.db.tripLog.findMany({ where: { carId }, orderBy: { recordedAt: "desc" }, take: 8 });
+  async listTrips(carId: string) {
+    const rows = unwrap(
+      await this.db.from("trip_logs").select("*").eq("car_id", carId).order("recorded_at", { ascending: false }).limit(8),
+    );
+    return rows.map((t) => ({
+      id: t.id,
+      distanceKm: t.distance_km,
+      fuelUsedL: t.fuel_used_l,
+      incidents: t.incidents,
+      recordedAt: new Date(t.recorded_at),
+    }));
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
 
   private async sumRevenue(from: Date, to: Date) {
-    const result = await this.db.reservation.aggregate({
-      where: { status: { in: REVENUE_STATUSES }, startDate: { gte: from, lt: to } },
-      _sum: { total: true },
-    });
-    return Number(result._sum.total ?? 0);
+    const rows = unwrap(
+      await this.db
+        .from("reservations")
+        .select("total")
+        .in("status", REVENUE_STATUSES)
+        .gte("start_date", from.toISOString())
+        .lt("start_date", to.toISOString()),
+    );
+    return sum(rows.map((r) => Number(r.total)));
+  }
+
+  /** SELECT count(*) sin traer filas. */
+  private head<T extends "cars" | "reservations">(table: T) {
+    return this.db.from(table).select("id", { count: "exact", head: true });
+  }
+
+  private async countRows(query: PromiseLike<{ count: number | null; error: { message: string } | null }>) {
+    const { count, error } = await query;
+    if (error) throw new Error(`[supabase] ${error.message}`);
+    return count ?? 0;
   }
 }
